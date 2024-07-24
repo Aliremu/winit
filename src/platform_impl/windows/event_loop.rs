@@ -35,24 +35,7 @@ use windows_sys::Win32::UI::Input::Touch::{
 };
 use windows_sys::Win32::UI::Input::{RAWINPUT, RIM_TYPEKEYBOARD, RIM_TYPEMOUSE};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, GetCursorPos,
-    GetMenu, GetMessageW, KillTimer, LoadCursorW, PeekMessageW, PostMessageW, RegisterClassExW,
-    RegisterWindowMessageA, SetCursor, SetTimer, SetWindowPos, TranslateMessage, CREATESTRUCTW,
-    GIDC_ARRIVAL, GIDC_REMOVAL, GWL_STYLE, GWL_USERDATA, HTCAPTION, HTCLIENT, MINMAXINFO,
-    MNC_CLOSE, MSG, NCCALCSIZE_PARAMS, PM_REMOVE, PT_PEN, PT_TOUCH, RI_MOUSE_HWHEEL,
-    RI_MOUSE_WHEEL, SC_MINIMIZE, SC_RESTORE, SIZE_MAXIMIZED, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, WHEEL_DELTA, WINDOWPOS, WMSZ_BOTTOM, WMSZ_BOTTOMLEFT,
-    WMSZ_BOTTOMRIGHT, WMSZ_LEFT, WMSZ_RIGHT, WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT,
-    WM_CAPTURECHANGED, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_DPICHANGED, WM_ENTERSIZEMOVE,
-    WM_EXITSIZEMOVE, WM_GETMINMAXINFO, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION,
-    WM_IME_SETCONTEXT, WM_IME_STARTCOMPOSITION, WM_INPUT, WM_INPUT_DEVICE_CHANGE, WM_KEYDOWN,
-    WM_KEYUP, WM_KILLFOCUS, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP,
-    WM_MENUCHAR, WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCACTIVATE, WM_NCCALCSIZE,
-    WM_NCCREATE, WM_NCDESTROY, WM_NCLBUTTONDOWN, WM_PAINT, WM_POINTERDOWN, WM_POINTERUP,
-    WM_POINTERUPDATE, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SETCURSOR, WM_SETFOCUS, WM_SETTINGCHANGE,
-    WM_SIZE, WM_SIZING, WM_SYSCOMMAND, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TOUCH, WM_WINDOWPOSCHANGED,
-    WM_WINDOWPOSCHANGING, WM_XBUTTONDOWN, WM_XBUTTONUP, WNDCLASSEXW, WS_EX_LAYERED,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_OVERLAPPED, WS_POPUP, WS_VISIBLE,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetClientRect, GetCursorPos, GetMenu, GetMessageW, KillTimer, LoadCursorW, PeekMessageW, PostMessageW, RegisterClassExW, RegisterWindowMessageA, SetCursor, SetTimer, SetWindowPos, TranslateMessage, CREATESTRUCTW, GIDC_ARRIVAL, GIDC_REMOVAL, GWL_STYLE, GWL_USERDATA, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT, MINMAXINFO, MNC_CLOSE, MSG, NCCALCSIZE_PARAMS, PM_REMOVE, PT_PEN, PT_TOUCH, RI_MOUSE_HWHEEL, RI_MOUSE_WHEEL, SC_MINIMIZE, SC_RESTORE, SIZE_MAXIMIZED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WHEEL_DELTA, WINDOWPOS, WMSZ_BOTTOM, WMSZ_BOTTOMLEFT, WMSZ_BOTTOMRIGHT, WMSZ_LEFT, WMSZ_RIGHT, WMSZ_TOP, WMSZ_TOPLEFT, WMSZ_TOPRIGHT, WM_CAPTURECHANGED, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_DPICHANGED, WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE, WM_GETMINMAXINFO, WM_IME_COMPOSITION, WM_IME_ENDCOMPOSITION, WM_IME_SETCONTEXT, WM_IME_STARTCOMPOSITION, WM_INPUT, WM_INPUT_DEVICE_CHANGE, WM_KEYDOWN, WM_KEYUP, WM_KILLFOCUS, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MENUCHAR, WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_NCACTIVATE, WM_NCCALCSIZE, WM_NCCREATE, WM_NCDESTROY, WM_NCHITTEST, WM_NCLBUTTONDOWN, WM_PAINT, WM_POINTERDOWN, WM_POINTERUP, WM_POINTERUPDATE, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SETCURSOR, WM_SETFOCUS, WM_SETTINGCHANGE, WM_SIZE, WM_SIZING, WM_SYSCOMMAND, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_TOUCH, WM_WINDOWPOSCHANGED, WM_WINDOWPOSCHANGING, WM_XBUTTONDOWN, WM_XBUTTONUP, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_OVERLAPPED, WS_POPUP, WS_VISIBLE
 };
 
 use super::window::set_skip_taskbar;
@@ -1035,6 +1018,69 @@ unsafe fn public_window_callback_inner(
     // the closure to catch_unwind directly so that the match body indentation wouldn't change and
     // the git blame and history would be preserved.
     let callback = || match msg {
+
+        // TODO(@Aliremu): Add 
+        WM_NCHITTEST => {
+            let window_flags = userdata.window_state_lock().window_flags;
+            if !window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+                result = ProcResult::DefWindowProc(wparam);
+                return;
+            }
+
+            // Expand the hit test area for resizing
+            let border_width = 8; // Adjust this value to control the hit test area size
+
+            let mouse_pos = POINT {
+                x: ((lparam) & 0xFFFF) as i32, 
+                y: (((lparam) >> 16) & 0xFFFF) as i32
+            };
+            
+
+            let client_mouse_pos = unsafe {
+                let mut client_mouse_pos: POINT = mem::zeroed();
+                if ScreenToClient(window, &mut client_mouse_pos) == false.into() {
+                    mouse_pos
+                } else {
+                    client_mouse_pos
+                }
+            };
+
+            let rect: RECT = unsafe {
+                let mut rect: RECT = mem::zeroed();
+                if GetClientRect(window, &mut rect) == false.into() {
+                    result = ProcResult::DefWindowProc(wparam); // exit early if GetClientRect failed
+                    return;
+                }
+                rect
+            };
+            
+            if client_mouse_pos.y >= rect.bottom - border_width {
+                if client_mouse_pos.x <= border_width {
+                    result = ProcResult::Value(HTBOTTOMLEFT as isize);
+                } else if client_mouse_pos.x >= rect.right - border_width {
+                    result = ProcResult::Value(HTBOTTOMRIGHT as isize);
+                } else {
+                    result = ProcResult::Value(HTBOTTOM as isize);
+                }
+            } else if client_mouse_pos.y <= border_width {
+                if client_mouse_pos.x <= border_width {
+                    result = ProcResult::Value(HTTOPLEFT as isize);
+                } else if client_mouse_pos.x >= rect.right - border_width {
+                    result = ProcResult::Value(HTTOPRIGHT as isize);
+                } else {
+                    result = ProcResult::Value(HTTOP as isize);
+                }
+            // } else if client_mouse_pos.y > borderWidth && client_mouse_pos.y <= 32 {
+            //     result = ProcResult::Value(HTCAPTION as isize);
+            } else if client_mouse_pos.x <= border_width {
+                result = ProcResult::Value(HTLEFT as isize);
+            } else if client_mouse_pos.x >= rect.right - border_width {            
+                result = ProcResult::Value(HTRIGHT as isize);
+            } else {
+                result = ProcResult::DefWindowProc(wparam);
+            }
+        },
+
         WM_NCCALCSIZE => {
             let window_flags = userdata.window_state_lock().window_flags;
             if wparam == 0 || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
