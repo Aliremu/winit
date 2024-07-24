@@ -1019,10 +1019,11 @@ unsafe fn public_window_callback_inner(
     // the git blame and history would be preserved.
     let callback = || match msg {
 
-        // TODO(@Aliremu): Add 
+        // TODO(@Aliremu): Add resize handles on undecorated windows
         WM_NCHITTEST => {
             let window_flags = userdata.window_state_lock().window_flags;
-            if !window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+
+            if window_flags.contains(WindowFlags::MARKER_DECORATIONS) || !window_flags.contains(WindowFlags::RESIZABLE) {
                 result = ProcResult::DefWindowProc(wparam);
                 return;
             }
@@ -1037,12 +1038,10 @@ unsafe fn public_window_callback_inner(
             
 
             let client_mouse_pos = unsafe {
-                let mut client_mouse_pos: POINT = mem::zeroed();
-                if ScreenToClient(window, &mut client_mouse_pos) == false.into() {
-                    mouse_pos
-                } else {
-                    client_mouse_pos
-                }
+                let mut client_mouse_pos: POINT = mouse_pos;
+                ScreenToClient(window, &mut client_mouse_pos);
+                
+                client_mouse_pos
             };
 
             let rect: RECT = unsafe {
